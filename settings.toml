@@ -1,0 +1,14 @@
+[default]
+claude_model = "claude-sonnet-4-5-20250929"
+max_tokens   = 1024
+log_level    = "INFO"
+
+[dev]
+log_level    = "DEBUG"
+
+[qa]
+claude_model = "claude-opus-4-7"
+
+[prod]
+claude_model = "claude-opus-4-7"
+max_tokens   = 2048
