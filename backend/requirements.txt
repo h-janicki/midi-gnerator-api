@@ -4,3 +4,7 @@ pydantic
 dynaconf
 anthropic
 mido
+sqlalchemy[asyncio]
+asyncpg
+alembic
+boto3

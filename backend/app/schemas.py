@@ -1,5 +1,8 @@
+from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Key(str, Enum):
@@ -42,41 +45,38 @@ class GenerateRequest(BaseModel):
         min_length=3,
         max_length=500,
         description="Free-text description, e.g. 'melancholic, lo-fi, slight swing feel'",
-        examples=["melancholic minimal techno groove"],
     )
-    track_type: TrackType = Field(
-        ...,
-        description="Type of track to generate",
-    )
-    key: Key = Field(
-        default=Key.A_MINOR,
-        description="Musical key",
-    )
-    bpm: int = Field(
-        default=120,
-        ge=60,
-        le=200,
-        description="Tempo in BPM",
-    )
-    bars: int = Field(
-        default=4,
-        ge=1,
-        le=16,
-        description="Length in bars (4/4 time)",
-    )
+    track_type: TrackType
+    key: Key = Key.A_MINOR
+    bpm: int = Field(default=120, ge=60, le=200)
+    bars: int = Field(default=4, ge=1, le=16)
 
 
 class Note(BaseModel):
-    pitch: int = Field(..., ge=0, le=127, description="MIDI pitch (0-127)")
-    start: float = Field(..., ge=0, description="Start position in beats")
-    duration: float = Field(..., gt=0, description="Length in beats")
+    pitch: int = Field(..., ge=0, le=127)
+    start: float = Field(..., ge=0)
+    duration: float = Field(..., gt=0)
     velocity: int = Field(default=80, ge=1, le=127)
 
 
-class GenerationMetadata(BaseModel):
+class GenerationResponse(BaseModel):
+    """Returned after /generate - client uses id to download the MIDI file."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    created_at: datetime
     description: str
     track_type: TrackType
     key: Key
     bpm: int
     bars: int
     note_count: int
+    is_favorite: bool
+
+
+class HistoryResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[GenerationResponse]

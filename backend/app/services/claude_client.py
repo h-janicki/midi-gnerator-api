@@ -2,8 +2,9 @@ import json
 import logging
 from anthropic import Anthropic
 
-from app.config import settings
+from app.config.app import settings
 from app.schemas import GenerateRequest, Note
+
 
 logger = logging.getLogger(__name__)
 
