@@ -20,7 +20,7 @@ Configuration uses **dynaconf** with two TOML files:
 - `settings.toml` — committed, non-sensitive defaults per environment
 - `.secrets.toml` — **not committed**, holds the API key
 
-Environment is selected via `MIDIGEN_ENV` (default: `development`).
+Environment is selected via `ENV` (default: `dev`).
 
 ### First-time setup
 

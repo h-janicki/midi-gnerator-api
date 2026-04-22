@@ -6,7 +6,7 @@ from pathlib import Path
 from dynaconf import Dynaconf
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Environment setup
 environment = os.environ.get("ENV", "dev")

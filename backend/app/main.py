@@ -1,23 +1,38 @@
 import logging
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
-from app.schemas import GenerateRequest, GenerationMetadata
-from app.services.claude_client import generate_notes
-from app.services.midi_builder import notes_to_midi
+from shared import build_s3_client, ensure_bucket_exists
 
-logging.basicConfig(level=settings.log_level)
+from app.api.healthcheck import router as healthcheck_router
+from app.api.midi_generate import router as generate_router
+from app.config.app import settings
+
+
+logger = logging.getLogger(__name__)
+
+s3_client = build_s3_client(
+    region_name=settings.aws_region,
+    endpoint_url=settings.s3_endpoint_url,
+    access_key=settings.s3_access_key,
+    secret_key=settings.s3_secret_key,
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_bucket_exists(s3_client, settings.s3_bucket)
+    yield
 
 app = FastAPI(
     title="MIDI Generator",
     description=(
-        "REST API that generates MIDI tracks from natural-language descriptions "
-        "and musical parameters. Uses Claude API to produce note sequences, "
-        "then converts them into standard .mid files ready for import into Ableton or any DAW."
+        "REST API that generates MIDI tracks from natural-language descriptions. "
+        "Generations are persisted in PostgreSQL and the .mid files are stored in S3-compatible storage."
     ),
-    version="0.1.0",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -27,68 +42,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/health", tags=["system"])
-def health():
-    """Health check endpoint."""
-    return {"status": "ok"}
-
-
-@app.post(
-    "/generate",
-    tags=["generation"],
-    summary="Generate and download a MIDI file",
-    response_class=Response,
-    responses={
-        200: {
-            "content": {"audio/midi": {}},
-            "description": "Standard .mid file ready to drop into a DAW",
-        }
-    },
-)
-def generate(req: GenerateRequest):
-    """Generate a MIDI track based on description and parameters."""
-    try:
-        notes = generate_notes(req)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        logging.exception("Generation failed")
-        raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
-
-    midi_bytes = notes_to_midi(notes, req.bpm)
-
-    key_slug = req.key.value.replace(" ", "_").replace("#", "sharp")
-    filename = f"{req.track_type.value}_{key_slug}_{req.bpm}bpm.mid"
-
-    return Response(
-        content=midi_bytes,
-        media_type="audio/midi",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "X-Note-Count": str(len(notes)),
-        },
-    )
-
-
-@app.post(
-    "/preview",
-    tags=["generation"],
-    summary="Preview metadata without generating a file",
-    response_model=GenerationMetadata,
-)
-def preview(req: GenerateRequest):
-    """Same as /generate, but returns metadata only. Useful for testing prompts."""
-    try:
-        notes = generate_notes(req)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-
-    return GenerationMetadata(
-        description=req.description,
-        track_type=req.track_type,
-        key=req.key,
-        bpm=req.bpm,
-        bars=req.bars,
-        note_count=len(notes),
-    )
+app.include_router(healthcheck_router)
+app.include_router(generate_router)
