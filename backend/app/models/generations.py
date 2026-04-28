@@ -8,7 +8,7 @@ from app.models import Base
 
 
 class Generation(Base):
-    __tablename__ = "midi_generations"
+    __tablename__ = "generations"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

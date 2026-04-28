@@ -1,4 +1,4 @@
 from app.models.base import Base
-from app.models.midi_generations import Generation
+from app.models.generations import Generation
 
 __all__ = ["Base", "Generation"]
